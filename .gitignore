@@ -1,0 +1,12 @@
+node_modules/
+.vscode/
+.DS_Store
+.env
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+package-lock.json.backup
+pnpm-lock.yaml
+dist/
+coverage/

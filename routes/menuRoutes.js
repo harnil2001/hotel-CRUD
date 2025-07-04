@@ -5,6 +5,7 @@ const Menu = require("../modules/menu.module");
 router.post("/", async (req, res) => {
   try {
     if (Array.isArray(req.body)) {
+      console.log('req.body', req.body)
       // Bulk insert
       const response = await Menu.insertMany(req.body);
       res.status(201).json(response);

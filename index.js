@@ -12,6 +12,7 @@ connectDB();
 
 // Basic route
 app.get("/", (req, res) => {
+  console.log('res', res)
   res.send("Hello World! Node.js + Express + MongoDB");
 });
 

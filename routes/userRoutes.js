@@ -3,6 +3,53 @@ const router = express.Router();
 const User = require("../modules/user.module");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const auth = require("./authMiddleware");
+
+// Signup route
+router.post("/signup", async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Name, email, and password are required" });
+    }
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({ name, email, password: hashedPassword, role });
+    const response = await user.save();
+    res.status(201).json({ message: "User registered successfully", user: response });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Login route
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+    const user = await User.findOne({ email });
+    console.log('user', user)
+    if (!user) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET || "secretkey", { expiresIn: "1d" });
+    res.json({ message: "Login successful", token });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Protect all routes below this middleware
+router.use(auth);
 
 // Route to create a user (supports single and bulk insert)
 router.post("/", async (req, res) => {
@@ -73,49 +120,6 @@ router.delete("/:id", async (req, res) => {
     res.json(deleteUser);
   } catch (err) {
     return res.status(404).json({ error: "Internal server error" });
-  }
-});
-
-// Signup route
-router.post("/signup", async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "Name, email, and password are required" });
-    }
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: "Email already exists" });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword, role });
-    const response = await user.save();
-    res.status(201).json({ message: "User registered successfully", user: response });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Login route
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-    const user = await User.findOne({ email });
-    console.log('user', user)
-    if (!user) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET || "secretkey", { expiresIn: "1d" });
-    res.json({ message: "Login successful", token });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
   }
 });
 

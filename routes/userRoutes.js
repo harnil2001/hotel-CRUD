@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const auth = require("./authMiddleware");
 
-// Signup route
+// Signup route (public)
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -25,7 +25,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-// Login route
+// Login route (public)
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -48,10 +48,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Get all users (public, NO auth middleware)
+router.get("/", async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Protect all routes below this middleware
 router.use(auth);
 
-// Route to create a user (supports single and bulk insert)
+// Add user (protected)
 router.post("/", async (req, res) => {
   try {
     if (Array.isArray(req.body)) {
@@ -70,30 +80,8 @@ router.post("/", async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-// Route to get all users
-router.get("/", async (req, res) => {
-  try {
-    const users = await User.find();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-router.get("/:role", async (req, res) => {
-  try {
-    const role = req.params.role;
-    if (["waiter", "chef", "manager", "user"].includes(role)) {
-      const response = await User.find({ role });
-      res.json(response);
-    } else {
-      return res.status(400).json({ error: "Invalid role" });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
+// Edit user (protected)
 router.put("/:id", async (req, res) => {
   try {
     const userId = req.params.id;
@@ -110,6 +98,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Delete user (protected)
 router.delete("/:id", async (req, res) => {
   try {
     const userId = req.params.id;

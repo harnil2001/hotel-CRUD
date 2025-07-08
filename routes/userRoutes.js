@@ -33,7 +33,6 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
     const user = await User.findOne({ email });
-    console.log('user', user)
     if (!user) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
@@ -61,6 +60,20 @@ router.get("/", async (req, res) => {
 // Protect all routes below this middleware
 router.use(auth);
 
+router.get("/:role", async (req, res) => {
+  try {
+    const role = req.params.role;
+    if (["waiter", "chef", "manager", "user"].includes(role)) {
+      const response = await User.find({ role: role });
+      res.json(response);
+    } else {
+      return res.status(400).json({ error: "Invalid role parameter" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add user (protected)
 router.post("/", async (req, res) => {
   try {
@@ -68,13 +81,11 @@ router.post("/", async (req, res) => {
       // Bulk insert
       const response = await User.insertMany(req.body);
       res.status(201).json(response);
-      console.log("Users added", response);
     } else {
       // Single insert
       const user = new User(req.body);
       const response = await user.save();
       res.status(201).json(response);
-      console.log("User added", response);
     }
   } catch (err) {
     res.status(400).json({ error: err.message });

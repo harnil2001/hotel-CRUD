@@ -4,6 +4,17 @@ const User = require("../modules/user.module");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const auth = require("./authMiddleware");
+const nodemailer = require("nodemailer");
+
+// Helper to generate a random password
+function generateRandomPassword(length = 10) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 // Signup route (public)
 router.post("/signup", async (req, res) => {
@@ -120,6 +131,72 @@ router.delete("/:id", async (req, res) => {
     res.json(deleteUser);
   } catch (err) {
     return res.status(404).json({ error: "Internal server error" });
+  }
+});
+
+// Forgot password (public, sends email with new random password)
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log('email', email)
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    const user = await User.findOne({ email });
+    console.log('user', user)
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+    const newPassword = generateRandomPassword();
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+console.log('newPassword', newPassword)
+    // Configure nodemailer (use your real email and app password or SMTP credentials)
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER, // your email
+        pass: process.env.EMAIL_PASS  // your app password
+      }
+    });
+console.log('transporter', transporter)
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Your New Password",
+      text: `Your new password is: ${newPassword}`
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "A new password has been sent to your email." });
+  } catch (err) {
+    console.log("Error sending email", err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Reset password (public)
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ error: "Reset token and new password are required" });
+    }
+    let payload;
+    try {
+      payload = jwt.verify(resetToken, process.env.JWT_SECRET || "secretkey");
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+    const user = await User.findById(payload.userId);
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.json({ message: "Password reset successful" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
